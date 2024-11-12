@@ -12,6 +12,8 @@
     "vite": "^5.4.10"
   },
   "dependencies": {
+    "easystarjs": "^0.4.4",
+    "phaser": "^3.86.0",
     "z3-solver": "^4.13.3"
   }
 }
