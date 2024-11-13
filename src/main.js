@@ -32,4 +32,3 @@ let config = {
 }
 
 const game = new Game(config);
-console.log(game);

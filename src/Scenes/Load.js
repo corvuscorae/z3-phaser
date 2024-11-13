@@ -1,4 +1,7 @@
 import { Scene, AUTO } from "phaser";
+import { getSolutions } from "../z3.js"
+
+let test = await getSolutions([]);
 
 export class Load extends Scene {
     constructor() {
@@ -18,7 +21,10 @@ export class Load extends Scene {
     }
 
     create() {
-         // ...and pass to the next Scene
+        console.log(test)
+        // define constraints here, get solution sets
+
+        // ...and pass to the next Scene
          this.scene.start("pathfinderScene");
     }
 }
