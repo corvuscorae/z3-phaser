@@ -22,10 +22,7 @@ export class Pathfinder extends Phaser.Scene {
     }
 
     preload() {
-        // get solutions sets using Z3
-        console.log(INSIDE_SOLUTIONS)
-        console.log(OUTSIDE_SOLUTIONS)
-        console.log(ON_SOLUTIONS)
+
     }
 
     init() {
@@ -84,15 +81,20 @@ export class Pathfinder extends Phaser.Scene {
         this.cKey = this.input.keyboard.addKey('C');
         this.lowCost = false;
 
-        // DO Z3
+        //------------------- DO Z3 -------------------//
+        // prune any coords where tiles are already placed on layers for OUTSIDE_SOLUTIONS
+        this.preventOverlap(OUTSIDE_SOLUTIONS, [this.housesLayer, this.stuffLayer]);
+
         // track tiles placed
         this.placed_inside = [];
         this.placed_outside = [];
         this.placed_on = [];
+
         // make copies of solution sets that can be emptied and re-filled
         this.inside_solutions = this.copyArray(INSIDE_SOLUTIONS);
         this.outside_solutions = this.copyArray(OUTSIDE_SOLUTIONS);
         this.on_solutions = this.copyArray(ON_SOLUTIONS);
+
         // controls
         this.qKey = this.input.keyboard.addKey('Q');    // put inside fence
         this.aKey = this.input.keyboard.addKey('A');    //  clear inside fence
@@ -146,6 +148,7 @@ export class Pathfinder extends Phaser.Scene {
         }
     }
 
+    // pick a random solution and place tile_id at those coords in layer
     placeSolution(solution_set, layer, tile_id){
         // pick a random coord from solution set
         let random = Phaser.Math.Between(0,solution_set.length-1);
@@ -160,18 +163,36 @@ export class Pathfinder extends Phaser.Scene {
         }
     }
 
+    // remove tiles from layer
     clearTiles(tile_array){
         tile_array.forEach(tile => {
             if(tile) tile.layer.tilemapLayer.removeTileAt(tile.x, tile.y);
         });
     }
 
+    // return a deep copy of array
     copyArray(array){
         let result = []; 
         array.forEach((elem) => {
             if(elem) result.push(elem);
         });
         return result;
+    }
+
+    // remove coordinates where tiles have already been placed on layers
+    preventOverlap(solution_set, layers){
+        layers.forEach((layer) => {
+            layer.forEachTile((tile) => { 
+                if(tile.index > -1){ // if there's a tile drawn here
+                    for(let i = 0; i < solution_set.length; i++){
+                        let coord = solution_set[i];
+                        if(coord.x === `${tile.x}` && coord.y === `${tile.y}`){
+                            solution_set.splice(i, 1);
+                        }
+                    }
+                }
+            });
+        });
     }
 
     resetCost(tileset) {
@@ -197,7 +218,6 @@ export class Pathfinder extends Phaser.Scene {
     layersToGrid() {
         let grid = [];
         // Initialize grid as two-dimensional array
-        // TODO: write initialization code
         let rows = this.map.height;
         let cols = this.map.width;
         for(let i = 0; i < rows; i++){
@@ -207,7 +227,6 @@ export class Pathfinder extends Phaser.Scene {
         }        
 
         // Loop over layers to find tile IDs, store in grid
-        // TODO: write this loop
         let arrayOfLayers = this.map.layers;
         for(let layer of arrayOfLayers){
             for(let x = 0; x < rows; x++){
@@ -219,7 +238,6 @@ export class Pathfinder extends Phaser.Scene {
         }
         return grid;
     }
-
 
     handleClick(pointer) {
         let x = pointer.x / this.SCALE;
@@ -268,7 +286,6 @@ export class Pathfinder extends Phaser.Scene {
     // uses the value of the cost property to inform EasyStar, using EasyStar's
     // setTileCost(tileID, tileCost) function.
     setCost(tileset) {
-        // TODO: write this function
         for(let tileID = tileset.firstgid; tileID <= tileset.total; tileID++){
             let props = tileset.getTileProperties(tileID);  
             if(props){ 
