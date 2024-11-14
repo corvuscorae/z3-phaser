@@ -15,3 +15,7 @@
 `npm install phaser`
 #### easystarjs
 `npm install easystarjs`
+
+### Next
+- [ ] allow user to change target area
+- [ ] add functionality to allow player to add constraints to Z3 solver from scene
