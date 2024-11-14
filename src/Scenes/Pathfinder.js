@@ -5,6 +5,9 @@ const MAP_SIZE = {
     width: 40,
     height: 25
 }
+
+// set target area for Z3 solver. for this demonstration, 
+// i default to the larger fenced-in area at the bottom of the map
 const TARGET_AREA = {
     left: 21,
     right: 29,
