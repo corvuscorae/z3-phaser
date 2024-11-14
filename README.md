@@ -5,8 +5,7 @@
 - Assets by Kenney: [Tiny Dungeon](https://kenney.nl/assets/tiny-dungeon) and [Tiny Town](https://kenney.nl/assets/tiny-town).
 
 ### To start a web server, run 
-`npm install`
-`npm run dev`
+`npm install`, then `npm run dev`
 
 ### Dependencies
 #### z3
