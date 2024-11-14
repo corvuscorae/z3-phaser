@@ -1,4 +1,20 @@
 import EasyStar from "easystarjs";
+import { getSolutions } from "../z3.js"
+
+const MAP_SIZE = {
+    width: 40,
+    height: 25
+}
+const TARGET_AREA = {
+    left: 21,
+    right: 29,
+    top: 17,
+    bottom: 20
+}
+
+const INSIDE_SOLUTIONS = await getSolutions([], TARGET_AREA, MAP_SIZE, "inside");
+const OUTSIDE_SOLUTIONS = await getSolutions([], TARGET_AREA, MAP_SIZE, "outside");
+const ON_SOLUTIONS = await getSolutions([], TARGET_AREA, MAP_SIZE, "on");
 
 export class Pathfinder extends Phaser.Scene {
     constructor() {
@@ -6,13 +22,16 @@ export class Pathfinder extends Phaser.Scene {
     }
 
     preload() {
+        // get solutions sets using Z3
+        console.log(INSIDE_SOLUTIONS)
+        console.log(OUTSIDE_SOLUTIONS)
+        console.log(ON_SOLUTIONS)
     }
 
     init() {
         this.TILESIZE = 16;
         this.SCALE = 2.0;
-        this.TILEWIDTH = 40;
-        this.TILEHEIGHT = 25;
+
         this.my = {sprite: {}}
     }
 
@@ -20,15 +39,15 @@ export class Pathfinder extends Phaser.Scene {
         let my = this.my;
 
         // Create a new tilemap which uses 16x16 tiles, and is 40 tiles wide and 25 tiles tall
-        this.map = this.add.tilemap("three-farmhouses", this.TILESIZE, this.TILESIZE, this.TILEHEIGHT, this.TILEWIDTH);
+        this.map = this.add.tilemap("three-farmhouses", this.TILESIZE, this.TILESIZE, MAP_SIZE.height, MAP_SIZE.width);
 
         // Add a tileset to the map
         this.tileset = this.map.addTilesetImage("kenney-tiny-town", "tilemap_tiles");
 
         // Create the layers
         this.groundLayer = this.map.createLayer("Ground-n-Walkways", this.tileset, 0, 0);
-        this.treesLayer = this.map.createLayer("Trees-n-Bushes", this.tileset, 0, 0);
         this.housesLayer = this.map.createLayer("Houses-n-Fences", this.tileset, 0, 0);
+        this.stuffLayer = this.map.createLayer("Trees-n-Bushes", this.tileset, 0, 0);
 
         // Create townsfolk sprite
         // Use setOrigin() to ensure the tile space computations work well
@@ -39,7 +58,7 @@ export class Pathfinder extends Phaser.Scene {
         this.cameras.main.setZoom(this.SCALE);
 
         // Create grid of visible tiles for use with path planning
-        let tinyTownGrid = this.layersToGrid([this.groundLayer, this.treesLayer, this.housesLayer]);
+        let tinyTownGrid = this.layersToGrid([this.groundLayer, this.housesLayer, this.stuffLayer]);
 
         let walkables = [1, 2, 3, 30, 40, 41, 42, 43, 44, 95, 13, 14, 15, 25, 26, 27, 37, 38, 39, 70, 84];
 
@@ -65,6 +84,22 @@ export class Pathfinder extends Phaser.Scene {
         this.cKey = this.input.keyboard.addKey('C');
         this.lowCost = false;
 
+        // DO Z3
+        // track tiles placed
+        this.placed_inside = [];
+        this.placed_outside = [];
+        this.placed_on = [];
+        // make copies of solution sets that can be emptied and re-filled
+        this.inside_solutions = this.copyArray(INSIDE_SOLUTIONS);
+        this.outside_solutions = this.copyArray(OUTSIDE_SOLUTIONS);
+        this.on_solutions = this.copyArray(ON_SOLUTIONS);
+        // controls
+        this.qKey = this.input.keyboard.addKey('Q');    // put inside fence
+        this.aKey = this.input.keyboard.addKey('A');    //  clear inside fence
+        this.wKey = this.input.keyboard.addKey('W');    // put outside fence
+        this.sKey = this.input.keyboard.addKey('S');    //  clear outside fence
+        this.eKey = this.input.keyboard.addKey('E');    // put on fence
+        this.dKey = this.input.keyboard.addKey('D');    //  clear on fence
     }
 
     update() {
@@ -79,6 +114,64 @@ export class Pathfinder extends Phaser.Scene {
                 this.lowCost = false;
             }
         }
+
+        //------------------- DO Z3 -------------------//
+        // HANDLE INSIDE FENCE PLACEMENTS
+        if (Phaser.Input.Keyboard.JustDown(this.qKey)) {   // put INSIDE
+            let placed = this.placeSolution(this.inside_solutions, this.stuffLayer, 58);
+            if(placed) this.placed_inside.push(placed);
+        }
+        if (Phaser.Input.Keyboard.JustDown(this.aKey)) {   // clear INSIDE
+            this.clearTiles(this.placed_inside);
+            this.inside_solutions = this.copyArray(INSIDE_SOLUTIONS);
+        }
+        // HANDLE OUTSIDE FENCE PLACEMENTS
+        if (Phaser.Input.Keyboard.JustDown(this.wKey)) {   // put OUTSIDE
+            let placed = this.placeSolution(this.outside_solutions, this.stuffLayer, 95);
+            if(placed) this.placed_outside.push(placed);
+            console.log(placed)
+        }
+        if (Phaser.Input.Keyboard.JustDown(this.sKey)) {   // clear OUTSIDE
+            this.clearTiles(this.placed_outside);
+            this.outside_solutions = this.copyArray(OUTSIDE_SOLUTIONS);
+        }
+        // HANDLE ON FENCE PLACEMENTS
+        if (Phaser.Input.Keyboard.JustDown(this.eKey)) {   // put ON
+            let placed = this.placeSolution(this.on_solutions, this.stuffLayer, 84);
+            if(placed) this.placed_on.push(placed);
+        }
+        if (Phaser.Input.Keyboard.JustDown(this.dKey)) {   // clear ON
+            this.clearTiles(this.placed_on);
+            this.on_solutions = this.copyArray(ON_SOLUTIONS);
+        }
+    }
+
+    placeSolution(solution_set, layer, tile_id){
+        // pick a random coord from solution set
+        let random = Phaser.Math.Between(0,solution_set.length-1);
+        let put_at = null;
+
+        if(solution_set.length === 0) console.log("Solution set depleted!");
+        // delete choice from set to prevent repeating
+        else{ put_at = solution_set.splice(random, 1)[0]; }
+
+        if(put_at){
+            return layer.putTileAt(tile_id, put_at.x, put_at.y)
+        }
+    }
+
+    clearTiles(tile_array){
+        tile_array.forEach(tile => {
+            if(tile) tile.layer.tilemapLayer.removeTileAt(tile.x, tile.y);
+        });
+    }
+
+    copyArray(array){
+        let result = []; 
+        array.forEach((elem) => {
+            if(elem) result.push(elem);
+        });
+        return result;
     }
 
     resetCost(tileset) {
@@ -135,13 +228,13 @@ export class Pathfinder extends Phaser.Scene {
         var toY = Math.floor(y/this.TILESIZE);
         var fromX = Math.floor(this.activeCharacter.x/this.TILESIZE);
         var fromY = Math.floor(this.activeCharacter.y/this.TILESIZE);
-        console.log('going from ('+fromX+','+fromY+') to ('+toX+','+toY+')');
+        //console.log('going from ('+fromX+','+fromY+') to ('+toX+','+toY+')');
     
         this.finder.findPath(fromX, fromY, toX, toY, (path) => {
             if (path === null) {
                 console.warn("Path was not found.");
             } else {
-                console.log(path);
+                //console.log(path);
                 this.moveCharacter(path, this.activeCharacter);
             }
         });
