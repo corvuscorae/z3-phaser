@@ -33,6 +33,15 @@ export class Pathfinder extends Phaser.Scene {
         this.SCALE = 2.0;
 
         this.my = {sprite: {}}
+
+        document.getElementById('description').innerHTML = 
+        `<h3>controls</h3>
+            press Q to place a tile inside fence<br>
+            press A to clear all tiles inside fence<br>
+            press W to place a tile outside fence<br>
+            press S to clear all tiles outside fence<br>
+            press E to place a tile on fence<br>
+            press D to clear all tiles on fence`;
     }
 
     create() {
@@ -134,7 +143,6 @@ export class Pathfinder extends Phaser.Scene {
         if (Phaser.Input.Keyboard.JustDown(this.wKey)) {   // put OUTSIDE
             let placed = this.placeSolution(this.outside_solutions, this.stuffLayer, 95);
             if(placed) this.placed_outside.push(placed);
-            console.log(placed)
         }
         if (Phaser.Input.Keyboard.JustDown(this.sKey)) {   // clear OUTSIDE
             this.clearTiles(this.placed_outside);
